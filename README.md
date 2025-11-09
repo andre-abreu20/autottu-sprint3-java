@@ -612,6 +612,7 @@ Este projeto é desenvolvido para fins educacionais como parte do curso da FIAP.
 
 ## 🙏 Agradecimentos
 
+- **Rennan Santos de Araujo** - Professor
 - **FIAP** - Instituição de ensino
 - **Spring Team** - Framework incrível
 - **OpenAI** - API de IA
