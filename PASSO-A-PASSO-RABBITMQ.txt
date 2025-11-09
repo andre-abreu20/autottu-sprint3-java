@@ -1,0 +1,214 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     🐰  PASSO A PASSO: RABBITMQ COM DOCKER - AUTOTTU  🐰     ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+📋 OPÇÃO 1: AUTOMÁTICO (RECOMENDADO)
+═══════════════════════════════════════════════════════════════
+
+1. Abra o PowerShell na pasta do projeto:
+   
+   cd C:\Users\T-GAMER\Downloads\Arquivos da Aula - 12_09 - Turma_H 1\autottu
+
+
+2. Execute o script de setup completo:
+   
+   .\docker-setup-completo.ps1
+
+
+3. Compile e rode a aplicação:
+   
+   mvn clean install
+   mvn spring-boot:run
+
+
+4. Teste!
+   
+   http://localhost:8080
+   Login: admin / admin123
+   Aprove um Test Ride e veja os logs!
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+📋 OPÇÃO 2: MANUAL (PASSO A PASSO)
+═══════════════════════════════════════════════════════════════
+
+PASSO 1: Verificar Docker
+──────────────────────────────────────────────────────────────
+docker --version
+
+Se der erro, instale:
+https://www.docker.com/products/docker-desktop/
+
+
+PASSO 2: Baixar Imagem RabbitMQ
+──────────────────────────────────────────────────────────────
+docker pull rabbitmq:management
+
+
+PASSO 3: Iniciar Container
+──────────────────────────────────────────────────────────────
+docker run -d --name rabbitmq-autottu -p 5672:5672 -p 15672:15672 rabbitmq:management
+
+
+PASSO 4: Verificar se está rodando
+──────────────────────────────────────────────────────────────
+docker ps
+
+Deve aparecer: rabbitmq-autottu   Up X seconds
+
+
+PASSO 5: Acessar Painel Web
+──────────────────────────────────────────────────────────────
+http://localhost:15672
+Usuário: guest
+Senha: guest
+
+
+PASSO 6: Configurar application.properties
+──────────────────────────────────────────────────────────────
+Abra: src/main/resources/application.properties
+
+COMENTAR esta linha (linha 37):
+# spring.profiles.active=mock
+
+MUDAR esta linha (linha 47):
+DE:  management.health.rabbit.enabled=false
+PARA: management.health.rabbit.enabled=true
+
+
+PASSO 7: Compilar Projeto
+──────────────────────────────────────────────────────────────
+mvn clean install
+
+
+PASSO 8: Rodar Aplicação
+──────────────────────────────────────────────────────────────
+mvn spring-boot:run
+
+
+PASSO 9: Testar
+──────────────────────────────────────────────────────────────
+1. Acesse: http://localhost:8080
+2. Login: admin / admin123
+3. Vá em "Test Rides"
+4. Crie um novo Test Ride
+5. Aprove o Test Ride
+6. Veja os logs no console!
+
+Você deve ver algo como:
+✅ Notificação enviada via RabbitMQ: {...}
+🎯 ====== MENSAGEM RABBITMQ RECEBIDA ======
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+🎮 COMANDOS ÚTEIS
+═══════════════════════════════════════════════════════════════
+
+Verificar status:
+    docker ps
+
+Ver logs:
+    docker logs rabbitmq-autottu
+
+Ver logs em tempo real:
+    docker logs -f rabbitmq-autottu
+
+Parar RabbitMQ:
+    docker stop rabbitmq-autottu
+
+Iniciar RabbitMQ:
+    docker start rabbitmq-autottu
+
+Reiniciar RabbitMQ:
+    docker restart rabbitmq-autottu
+
+Remover container:
+    docker rm -f rabbitmq-autottu
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+🆘 PROBLEMAS COMUNS
+═══════════════════════════════════════════════════════════════
+
+❌ Porta 5672 já em uso:
+   netstat -ano | findstr :5672
+   taskkill /PID <numero> /F
+
+❌ Docker não inicia:
+   - Abra Docker Desktop
+   - Aguarde aparecer "Docker Desktop is running"
+   - Tente novamente
+
+❌ Container não sobe:
+   docker rm -f rabbitmq-autottu
+   docker run -d --name rabbitmq-autottu -p 5672:5672 -p 15672:15672 rabbitmq:management
+
+❌ Aplicação não conecta:
+   - Verifique se RabbitMQ está rodando: docker ps
+   - Verifique application.properties
+   - Reinicie a aplicação
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+🌐 ACESSOS
+═══════════════════════════════════════════════════════════════
+
+Aplicação AutoTTU:
+    http://localhost:8080
+    
+Painel RabbitMQ:
+    http://localhost:15672
+    Usuário: guest
+    Senha: guest
+
+Actuator (Telemetria):
+    http://localhost:8080/telemetria
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+📚 DOCUMENTAÇÃO
+═══════════════════════════════════════════════════════════════
+
+Quick Start:           RABBITMQ-QUICKSTART.md
+Guia Completo:         GUIA-RABBITMQ-DOCKER.md
+README Principal:      README.md
+
+
+═══════════════════════════════════════════════════════════════
+
+
+
+🎯 PRÓXIMOS PASSOS
+═══════════════════════════════════════════════════════════════
+
+Depois que RabbitMQ estiver funcionando:
+
+1. Implementar Kafka (mesmo processo)
+2. Testar em diferentes cenários
+3. Monitorar filas no painel
+4. Explorar as métricas do Actuator
+
+
+═══════════════════════════════════════════════════════════════
+
+✅ TUDO PRONTO! BOA SORTE! 🚀
+
+

@@ -28,13 +28,10 @@ spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=guest
 spring.rabbitmq.password=guest
-spring.rabbitmq.listener.simple.auto-startup=true
 
 # Configurações Kafka
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.consumer.group-id=autottu-grupo
-spring.kafka.consumer.auto-startup=true
-spring.kafka.listener.auto-startup=true
 
 # Para testar SEM RabbitMQ/Kafka instalados, descomente a linha abaixo:
 # spring.profiles.active=mock
@@ -45,9 +42,10 @@ management.endpoints.web.exposure.include=*
 # Define a porta do servidor (já estava definida implicitamente)
 server.port=8080
 
-# Health checks do Spring Boot Actuator
+# Desabilita os health checks do RabbitMQ e Kafka
+# (necessário quando estão em modo mock ou não instalados)
 management.health.rabbit.enabled=true
-management.health.kafka.enabled=true
+management.health.kafka.enabled=false
 
 # Mostra detalhes do health check (opcional, útil para debug)
 management.endpoint.health.show-details=always

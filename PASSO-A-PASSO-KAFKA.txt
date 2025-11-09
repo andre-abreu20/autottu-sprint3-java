@@ -1,0 +1,85 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║        ☕  PASSO A PASSO: KAFKA COM DOCKER - AUTOTTU          ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+📦 PREPARO INICIAL
+═══════════════════════════════════════════════════════════════
+1. Abra o PowerShell na pasta do projeto:
+   cd "C:\Users\T-GAMER\Downloads\Arquivos da Aula - 12_09 - Turma_H 1\autottu"
+
+2. Verifique o Docker:
+   docker --version
+   docker ps
+
+
+🚀 SUBIR KAFKA EM 1 COMANDO
+═══════════════════════════════════════════════════════════════
+.\docker-kafka-setup-completo.ps1
+
+(O script baixa `apache/kafka:3.7.0`, formata automaticamente o volume KRaft, cria o container kafka-autottu, habilita as configs no application.properties e ativa health checks.)
+
+
+▶️ REINICIAR A APLICAÇÃO
+═══════════════════════════════════════════════════════════════
+mvn clean install
+mvn spring-boot:run
+
+Deixe o console visível (vamos observar os logs 📡 [KAFKA] ...)
+
+
+🧪 GERAR EVENTOS PARA TESTE
+═══════════════════════════════════════════════════════════════
+1. http://localhost:8080
+2. Login: admin / admin123
+3. Check-ins → "Registrar Check-in" → preencher → salvar
+   ✔ Console: "📡 [KAFKA] Evento Check-in enviado..."
+   ✔ Console: "🎯 ======= EVENTO KAFKA: CHECK-IN ======="
+
+4. Manutenções → "Nova Manutenção" → preencher → salvar
+   ✔ Console: "📡 [KAFKA] Evento Manutenção enviado..."
+   ✔ Console: "🎯 ====== EVENTO KAFKA: MANUTENÇÃO ======"
+
+(Dá para repetir com Auditoria se quiser ver o tópico `autottu-auditoria-eventos`.)
+
+
+🔍 CONFIRMAR NO BROKER
+═══════════════════════════════════════════════════════════════
+.\docker-kafka-status.ps1
+
+Saída esperada:
+- kafka-autottu     Up ...     0.0.0.0:9092->9092/tcp
+- Lista de tópicos: autottu-checkin-eventos, autottu-manutencao-eventos, autottu-auditoria-eventos
+
+Comandos extras:
+- docker exec kafka-autottu /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+- docker exec kafka-autottu /opt/kafka/bin/kafka-console-consumer.sh --topic autottu-checkin-eventos --from-beginning --bootstrap-server localhost:9092
+
+
+🛑 PARAR / 🟢 INICIAR / 🗑 REMOVER
+═══════════════════════════════════════════════════════════════
+Parar:      .\docker-kafka-stop.ps1
+Iniciar:    .\docker-kafka-start.ps1
+Logs:       .\docker-kafka-logs.ps1
+Remover:    .\docker-kafka-remove.ps1 (remove volume kafka_autottu_data também)
+
+
+🆘 PROBLEMAS COMUNS
+═══════════════════════════════════════════════════════════════
+❌ Connection refused?  → kafka-autottu não está rodando. Use docker ps, docker start kafka-autottu
+❌ Health DOWN?         → Kafka demorou a subir. Aguarde 10s e atualize /telemetria
+❌ Sem logs [KAFKA]?    → Verifique se application.properties está com spring.profiles.active comentado e reinicie
+❌ Porta 9092 em uso?   → netstat -ano | findstr :9092 → taskkill /PID <pid> /F
+
+
+✅ RESUMO FINAL
+═══════════════════════════════════════════════════════════════
+1. .\docker-kafka-setup-completo.ps1
+2. mvn spring-boot:run
+3. Registrar Check-in / Manutenção
+4. Ver logs 📡 [KAFKA] e 🎯 ...
+5. Conferir tópicos com .\docker-kafka-status.ps1
+
+Kafka + RabbitMQ ativos 100% offline! 🏍️☕
