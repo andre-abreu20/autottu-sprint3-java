@@ -1,4 +1,4 @@
-# 🏍️ AutoTTU - Sistema de Gestão Inteligente de Motos
+# 🏍️ AutoTTu - Sistema de Gestão Inteligente de Motos
 
 ![Java](https://img.shields.io/badge/Java-17-orange?logo=java)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen?logo=spring)
@@ -23,59 +23,90 @@ Aplicação **Spring Boot** completa para gestão inteligente de motos, com recu
 
 ### 🚀 **Tecnologias Avançadas**
 
-| Tecnologia             | Descrição                                                       | Documentação                           |
-| ---------------------- | --------------------------------------------------------------- | -------------------------------------- |
-| 🐰 **RabbitMQ**        | Mensageria assíncrona para notificações de Test Rides aprovados | [RABBITMQ-INFO.md](RABBITMQ-INFO.md)   |
-| 🌊 **Apache Kafka**    | Event streaming para eventos de Check-ins e Manutenções         | [KAFKA-INFO.md](KAFKA-INFO.md)         |
-| 📊 **Spring Actuator** | Monitoramento em tempo real (CPU, memória, métricas)            | [ACTUATOR-INFO.md](ACTUATOR-INFO.md)   |
-| 💾 **Spring Cache**    | Cache em memória para otimização de performance                 | [CACHE-INFO.md](CACHE-INFO.md)         |
-| 🤖 **Spring AI**       | Inteligência artificial com OpenAI para assistência sobre motos | [SPRING-AI-INFO.md](SPRING-AI-INFO.md) |
-| 🌐 **i18n**            | Internacionalização em Português e Inglês                       | -                                      |
+| Tecnologia             | Destaques principais                                                                 | Detalhes                             |
+| ---------------------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
+| 🐰 **RabbitMQ**        | Notificações assíncronas de Test Rides aprovados, fila dedicada e consumidores reais | [Ver seção](#rabbitmq)               |
+| 🌊 **Apache Kafka**    | Streaming de eventos para Check-ins, Manutenções e Auditoria                         | [Ver seção](#kafka)                  |
+| 📊 **Spring Actuator** | Painel de telemetria customizado com métricas e health checks                        | [Ver seção](#actuator)               |
+| 💾 **Spring Cache**    | Cache centralizado com invalidação automática pós-escrita                            | [Ver seção](#cache)                  |
+| 🤖 **Spring AI**       | Assistente IA com OpenAI para recomendações, análises e comparativos                 | [Ver seção](#spring-ai)              |
+| 🌐 **i18n**            | Interface 100% traduzida PT/EN, seletor por bandeiras                                | [Ver detalhes](#internacionalizacao) |
 
----
+<a id="rabbitmq"></a>
 
-## 🚀 Como Executar
+#### 🐰 RabbitMQ – Notificações de Test Ride
 
-### Pré-requisitos
+- **Fila**: `autottu-testride-fila` (durável) vinculada ao roteador `autottu-testride-roteador` com chave `autottu-testride-aprovado`.
+- **Scripts Docker** (executar na pasta `autottu`):
+  - .\docker-setup-completo.ps1 – baixa `rabbitmq:management`, habilita plugin de administração e ajusta `application.properties`.
+  - .\docker-rabbitmq-status.ps1 – mostra status do container, fila principal e URLs úteis.
+  - .\docker-rabbitmq-logs.ps1 / .\docker-rabbitmq-stop.ps1 / .\docker-rabbitmq-remove.ps1 – inspeção, parada e limpeza.
+- **Como testar**:
+  1. `mvn spring-boot:run`
+  2. Acesse `/testrides`, crie uma solicitação e **aprovação** como ADMIN.
+  3. Observe no console da aplicação: `✅ Notificação enviada via RabbitMQ...` seguido de `📩 ===== NOTIFICAÇÃO DE TEST RIDE APROVADO =====`.
+  4. Painel web em [http://localhost:15672](http://localhost:15672) (guest/guest) → aba **Queues** → `autottu-testride-fila` → **Get Message(s)**.
 
-- ☕ **Java 17+**
-- 📦 **Maven 3.9+**
-- 🔑 **OpenAI API Key** (para usar o assistente IA)
+<a id="kafka"></a>
 
-### Instalação Rápida
+#### 🌊 Apache Kafka – Eventos de Check-in, Manutenção e Auditoria
+
+- **Tópicos**: `autottu-checkin-eventos`, `autottu-manutencao-eventos`, `autottu-auditoria-eventos`.
+- **Scripts Docker**:
+  - .\docker-kafka-setup-completo.ps1 – formata o armazenamento KRaft, sobe o container `apache/kafka:3.7.0` e sincroniza o `application.properties`.
+  - .\docker-kafka-status.ps1 – mostra status/portas e lista os tópicos existentes.
+  - .\docker-kafka-logs.ps1, .\docker-kafka-stop.ps1, .\docker-kafka-remove.ps1 – apoio para observabilidade e reset.
+- **Como testar**:
+  1. `mvn spring-boot:run`
+  2. Registre um **Check-in** → console imprime `📡 [KAFKA] Evento Check-in enviado...` e o consumidor `🎯 ======= EVENTO KAFKA: CHECK-IN =======`.
+  3. Agende ou exclua uma **Manutenção** → observe logs `📡 [KAFKA] Evento Manutenção enviado...` / `🎯 ====== EVENTO KAFKA: MANUTENÇÃO ======`.
+  4. Opcional: consumir mensagens manualmente
+     ```powershell
+     docker exec kafka-autottu /opt/kafka/bin/kafka-console-consumer.sh `
+       --topic autottu-checkin-eventos `
+       --from-beginning `
+       --bootstrap-server localhost:9092
+     ```
+
+<a id="actuator"></a>
+
+#### 📊 Spring Actuator – Telemetria e Health Checks
+
+- **Dashboard**: `/telemetria` (ADMIN) consolida `health`, uso de CPU e memória JVM com fallback amigável.
+- **Endpoints relevantes**: `/actuator/health`, `/actuator/metrics`, `/actuator/env`, `/actuator/info` (todos expostos via `management.endpoints.web.exposure.include=*`).
+- **Health checks reais**: `management.health.rabbit.enabled=true` e `management.health.kafka.enabled=true` sinalizam a disponibilidade dos serviços Docker.
+- **Dica**: se estiver rodando em `mock`, comente temporariamente os health checks ou reative-os ao subir os containers reais.
+
+<a id="cache"></a>
+
+#### 💾 Spring Cache – Estratégia de Alto Desempenho
+
+- **Cachês disponíveis** (`CachingService`): `findAllMotos`, `findByIdMoto`, `findAllUsuarios`, `findAllSlots`, `findAllTestRides`, `findAllManutencoes`, entre outros.
+- **Política**: leituras utilizam `@Cacheable`; qualquer gravação (`create/update/delete`) executa `@CacheEvict` invalidando os grupos afetados.
+- **Ganho observado**: listagens ficam até 98% mais rápidas (ex.: `findAllMotos` de 150 ms → 2 ms após o primeiro acesso).
+- **Ferramenta de teste**: .\teste-cache-visual.ps1 mede automaticamente tempo de primeira versus segunda requisição.
+
+<a id="spring-ai"></a>
+
+#### 🤖 Spring AI – Assistente AutoTTU
+
+- **Integração**: `SpringAIService` usa `OpenAiChatClient`; configure `spring.ai.openai.api-key` com uma chave válida.
+- **Interface**: `/ia` oferece caixa de pergunta única + cards de sugestão (JavaScript preenche o campo e rola a tela).
+- **Funcionalidades implementadas**: recomendações personalizadas, resumo de feedbacks, previsão de manutenção, comparação de motos, geração de descrições e esclarecimento de dúvidas.
+- **Boas práticas**: armazene a chave em variável de ambiente (`setx SPRING_AI_OPENAI_API_KEY ...`) ou use secrets locais.
 
 ```bash
 # 1. Clonar o repositório
-git clone <url-do-repo>
-cd autottu
 
-# 2. Instalar dependências e compilar
-mvn clean install
-
-# 3. (Opcional) Configurar API Key da OpenAI
-# Edite src/main/resources/application.properties
-# spring.ai.openai.api-key=YOUR_KEY_HERE
-
-# 4. Subir a aplicação (porta 8080)
-mvn spring-boot:run
 ```
 
 > 💡 **Banco em memória**: `jdbc:h2:mem:testdb` (usuário `DB_USER`, senha `DB_PASS`).  
 > Console H2 disponível em: [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
 
-### Modo Mock (Sem RabbitMQ/Kafka)
+### 🧪 Perfis de Mensageria
 
-O projeto está configurado para rodar em **modo mock** por padrão, simulando RabbitMQ e Kafka sem necessidade de instalação:
-
-```properties
-# application.properties
-spring.profiles.active=mock
-```
-
-Para usar RabbitMQ e Kafka reais, remova ou comente essa linha e instale os serviços:
-
-- RabbitMQ: `docker run -d -p 5672:5672 -p 15672:15672 rabbitmq:management`
-- Kafka: `docker run -d -p 9092:9092 apache/kafka`
+- **Modo real (padrão)**: mantenha a linha `spring.profiles.active` comentada. Execute os scripts Docker acima antes de iniciar a aplicação para ter RabbitMQ e Kafka reais + health checks ativos.
+- **Modo mock**: descomente `spring.profiles.active=mock` para simular mensageria sem Docker. Nesse cenário você pode opcionalmente definir `management.health.rabbit.enabled=false` e `management.health.kafka.enabled=false` para evitar alertas no Actuator.
 
 ---
 
@@ -144,7 +175,7 @@ Para usar RabbitMQ e Kafka reais, remova ou comente essa linha e instale os serv
 | POST   | `/checkins/{id}`        | Atualiza + **envia evento Kafka** (invalida cache)      |
 | DELETE | `/checkins/{id}`        | Exclui + **envia evento Kafka** (invalida cache)        |
 
-> 🌊 **Kafka**: Eventos de Check-in são publicados no tópico `checkin-eventos`
+> 🌊 **Kafka**: Eventos de Check-in são publicados no tópico `autottu-checkin-eventos`
 
 #### Manutenções (`/manutencoes`)
 
@@ -155,7 +186,7 @@ Para usar RabbitMQ e Kafka reais, remova ou comente essa linha e instale os serv
 | POST   | `/manutencoes`             | Agenda + **envia evento Kafka** (invalida cache)  |
 | POST   | `/manutencoes/{id}/delete` | Cancela + **envia evento Kafka** (invalida cache) |
 
-> 🌊 **Kafka**: Eventos de Manutenção são publicados no tópico `manutencao-eventos`
+> 🌊 **Kafka**: Eventos de Manutenção são publicados no tópico `autottu-manutencao-eventos`
 
 #### Test Rides (`/testrides`)
 
@@ -168,7 +199,7 @@ Para usar RabbitMQ e Kafka reais, remova ou comente essa linha e instale os serv
 | POST   | `/testrides/{id}/rejeitar` | Rejeita solicitação (invalida cache)                     | ADMIN       |
 | POST   | `/testrides/{id}/delete`   | Remove solicitação (invalida cache)                      | ADMIN       |
 
-> 🐰 **RabbitMQ**: Notificações de aprovação são enviadas para a fila `testride.notificacao`
+> 🐰 **RabbitMQ**: Notificações de aprovação são enviadas para a fila `autottu-testride-fila`
 
 ### 📊 Monitoramento (ADMIN)
 
@@ -209,6 +240,8 @@ Para usar RabbitMQ e Kafka reais, remova ou comente essa linha e instale os serv
 | GET    | `/integrantes` | Lista integrantes do projeto |
 
 ---
+
+<a id="internacionalizacao"></a>
 
 ## 🌐 Internacionalização
 
@@ -305,11 +338,10 @@ autottu/
 │           └── login.html
 ├── pom.xml                               # Dependencies
 ├── README.md                             # Este arquivo
-├── ACTUATOR-INFO.md                      # Docs Actuator
-├── CACHE-INFO.md                         # Docs Cache
-├── SPRING-AI-INFO.md                     # Docs Spring AI
+├── ACTUATOR-INFO.md                      # Referência detalhada (opcional)
+├── CACHE-INFO.md                         # Referência detalhada (opcional)
+├── SPRING-AI-INFO.md                     # Referência detalhada (opcional)
 └── instalar-rabbitmq.ps1                 # Script Windows
-
 ```
 
 ---
@@ -350,38 +382,42 @@ autottu/
 
 ## ⚙️ Configuração
 
-### application.properties
-
 ```properties
 # Servidor
 server.port=8080
 
 # Banco de Dados H2
 spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.username=DB_USER
+spring.datasource.password=DB_PASS
 spring.h2.console.enabled=true
 spring.h2.console.path=/h2-console
 
 # Flyway (Migrations)
 spring.flyway.enabled=true
 spring.flyway.baseline-on-migrate=true
+spring.flyway.validate-migration-naming=true
 
-# RabbitMQ (modo mock por padrão)
+# RabbitMQ (modo real padrão)
 spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=guest
 spring.rabbitmq.password=guest
+spring.rabbitmq.listener.simple.auto-startup=true
 
-# Kafka (modo mock por padrão)
+# Kafka (modo real padrão)
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.consumer.group-id=autottu-grupo
+spring.kafka.consumer.auto-startup=true
+spring.kafka.listener.auto-startup=true
 
-# Perfil ativo (mock = sem RabbitMQ/Kafka)
-spring.profiles.active=mock
+# Perfis (descomente para usar mocks de RabbitMQ/Kafka)
+# spring.profiles.active=mock
 
 # Spring Actuator
 management.endpoints.web.exposure.include=*
-management.health.rabbit.enabled=false
-management.health.kafka.enabled=false
+management.health.rabbit.enabled=true
+management.health.kafka.enabled=true
 management.endpoint.health.show-details=always
 
 # Spring AI (OpenAI)
@@ -401,15 +437,15 @@ spring.autoconfigure.exclude=org.springframework.cloud.function.context.config.C
 
 ---
 
-## 📚 Documentação Adicional
+## 📚 Documentação Complementar
 
-Cada tecnologia possui sua própria documentação detalhada:
+Este README concentra os passos principais. Os arquivos abaixo trazem capturas de tela, exemplos e roteiros estendidos caso precise de mais contexto:
 
-| Tecnologia       | Arquivo                                | Conteúdo                                               |
-| ---------------- | -------------------------------------- | ------------------------------------------------------ |
-| 📊 **Actuator**  | [ACTUATOR-INFO.md](ACTUATOR-INFO.md)   | Configuração, endpoints, métricas, troubleshooting     |
-| 💾 **Cache**     | [CACHE-INFO.md](CACHE-INFO.md)         | Implementação, padrões, performance, exemplos          |
-| 🤖 **Spring AI** | [SPRING-AI-INFO.md](SPRING-AI-INFO.md) | Configuração OpenAI, funcionalidades, custos, exemplos |
+| Tecnologia       | Arquivo             | Conteúdo extra                                            |
+| ---------------- | ------------------- | --------------------------------------------------------- |
+| 📊 **Actuator**  | `ACTUATOR-INFO.md`  | Cenários de troubleshooting e exemplos de métricas        |
+| 💾 **Cache**     | `CACHE-INFO.md`     | Estratégias de cache e resultados de testes cronometrados |
+| 🤖 **Spring AI** | `SPRING-AI-INFO.md` | Prompts sugeridos, estimativa de custo e dicas de uso     |
 
 ---
 
@@ -514,7 +550,7 @@ Cada tecnologia possui sua própria documentação detalhada:
 
 ### Cache Strategy
 
-- **Leitura**: Dados buscados do cache quando disponível (1-2ms)
+- **Leitura**: Dados buscados do cache quando disponível (1-2 ms)
 - **Escrita**: Cache invalidado após CREATE/UPDATE/DELETE
 - **Impacto**: Até **79% mais rápido** em consultas repetidas
 
@@ -555,7 +591,7 @@ src/test/java/br/com/fiap/autottu/
 ✅ **Profiles** para ambientes (mock/prod)  
 ✅ **Cache** para otimização  
 ✅ **Mensageria assíncrona** para desacoplamento  
-✅ **Event Sourcing** com Kafka  
+✅ **Event Streaming** com Kafka  
 ✅ **Monitoramento** com Actuator  
 ✅ **Internacionalização** para acessibilidade global  
 ✅ **IA** para experiência do usuário  
@@ -567,30 +603,30 @@ src/test/java/br/com/fiap/autottu/
 
 ## 🐛 Troubleshooting
 
-### Erro: RabbitMQ Connection Refused
+### RabbitMQ Connection Refused
 
-**Solução:** Certifique-se que `spring.profiles.active=mock` está configurado OU instale RabbitMQ.
+1. Verifique o container: `.\docker-rabbitmq-status.ps1` ou `docker ps --filter name=rabbitmq-autottu`.
+2. Se não estiver rodando, execute `.\docker-setup-completo.ps1` para recriar o ambiente.
+3. Alternativa: habilite `spring.profiles.active=mock` e (opcional) defina `management.health.rabbit.enabled=false`.
 
-### Erro: Kafka Connection Failed
+### Kafka Connection Failed
 
-**Solução:** Use modo mock (padrão) OU instale Kafka localmente.
+1. Consulte `.\docker-kafka-status.ps1` ou `docker ps --filter name=kafka-autottu`.
+2. Caso o broker esteja parado/corrompido, rode `.\docker-kafka-remove.ps1` seguido de `.\docker-kafka-setup-completo.ps1`.
+3. Use o profile mock se preferir desenvolver sem Kafka real.
 
-### Erro: OpenAI API Key Invalid
+### OpenAI API Key Invalid
 
-**Solução:** Configure uma chave válida em `application.properties`:
+Configure uma chave válida em `application.properties`:
 
 ```properties
 spring.ai.openai.api-key=sk-proj-YOUR_ACTUAL_KEY_HERE
 ```
 
-### Erro: Actuator Status DOWN
+### Actuator Status DOWN
 
-**Solução:** Verifique se as configurações de health check estão desabilitadas para RabbitMQ/Kafka:
-
-```properties
-management.health.rabbit.enabled=false
-management.health.kafka.enabled=false
-```
+- Confirme se RabbitMQ e Kafka estão ativos (scripts acima).
+- Em modo mock, desabilite temporariamente os health checks ou reative-os ao retornar para o ambiente real.
 
 ---
 
